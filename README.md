@@ -1,7 +1,7 @@
 # Learner Assist 🎓
 
-**Hackathon Project: CHAKRAVYUH 1.0**  
-**Problem Statement:** GITA-CVPS001
+**Hackathon Project : learner assist**  
+**Problem Statement:** [Student Track] AI for Learning & Developer Productivity
 
 Learner Assist is an AI-powered educational platform designed to help students understand concepts, code, and learning roadmaps through an interactive interface.
 
@@ -76,6 +76,6 @@ Since we are working as a team:
 2.  **Branching:**
     - `main`: Stable version.
     - Create feature branches for new work: `git checkout -b feature-name`
-3.  **Merge Conflicts:** If you touch `src/app.jsx` at the same time as someone else, communicate!
+3.  **make a separate feature file for both frontend and backend for smooth merging
 
 ### Happy Hacking! 🚀
