@@ -28,13 +28,22 @@ Follow these instructions to set up the project locally for development.
     ```
 
 ### 🏃 Running the Project
-To start the **frontend** development server:
+**1. Start the Backend:**
+   Open a new terminal:
+   ```bash
+   cd server
+   npm install
+   npm run dev
+   ```
+   - Server runs on `http://localhost:5000`
 
-```bash
-npm run dev
-```
-- The app will run at `http://localhost:5173/` (or similar, check terminal output).
-- Changes are auto-reloaded.
+**2. Start the Frontend:**
+   Open a new terminal:
+   ```bash
+   npm run dev
+   ```
+   - App runs on `http://localhost:5173`
+
 
 ---
 
