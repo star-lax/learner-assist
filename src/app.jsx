@@ -14,6 +14,40 @@ import "./App.css";
 function App() {
   const [activeFeature, setActiveFeature] = useState("explainer");
   const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [output, setOutput] = useState("");
+
+  const handleGenerate = async () => {
+    if (!input.trim()) return;
+
+    setLoading(true);
+    setOutput(""); // Clear previous output
+
+    try {
+      const response = await fetch('http://localhost:5000/api/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          feature: activeFeature,
+          input: input,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.result) {
+        setOutput(data.result);
+      } else {
+        setOutput("Error: No result from AI.");
+      }
+    } catch (error) {
+      console.error("Error calling API:", error);
+      setOutput("Error: Failed to connect to the backend. Is the server running?");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const features = [
     { id: "explainer", name: "Concept Explainer", icon: <BookOpen size={28} /> },
@@ -44,8 +78,8 @@ function App() {
             <span>GITA Autonomous College</span>
           </div>
           <div className="status-item">
-            <span className="status-dot offline"></span>
-            <span>Backend Offline</span>
+            <span className={`status-dot ${output ? "active" : "offline"}`}></span>
+            <span>{output ? "Backend Active" : "Backend Offline"}</span>
           </div>
         </div>
       </header>
@@ -80,16 +114,21 @@ function App() {
           />
 
           <div className="action-bar">
-            <button className="action-btn">
-              Analyze Input
+            <button
+              className="action-btn"
+              onClick={handleGenerate}
+              disabled={loading}
+              style={{ opacity: loading ? 0.7 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
+            >
+              {loading ? "Analyzing..." : "Analyze Input"}
             </button>
           </div>
 
           <div className="output-area">
             <span className="output-label">System Output</span>
-            <p style={{ fontSize: '0.9rem', color: '#cbd5e1', lineHeight: '1.6' }}>
-              Waiting for input analysis...
-            </p>
+            <div style={{ fontSize: '0.9rem', color: '#cbd5e1', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
+              {output || "Waiting for input analysis..."}
+            </div>
           </div>
         </div>
       </main>
