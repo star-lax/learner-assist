@@ -61,19 +61,36 @@ Here is a guide to the key files for collaboration:
 - **`vite.config.js`** → Configuration for the Vite build tool.
 
 ### **Backend**
-> ⚠️ **Status: Backend Offline**  
-> Currently, this repository contains only the frontend. 
-> *If you are adding backend code:*
-> - Create a `server/` or `backend/` directory.
-> - Typically, the main backend file would be `index.js` or `app.py`.
+- **`server/index.js`** → **MAIN BACKEND SERVER**.
+    - Express.js server that handles API requests.
+    - Integrates with Groq AI API for content generation.
+    - Runs on `http://localhost:5000`.
+- **`server/.env`** → **ENVIRONMENT VARIABLES**.
+    - Contains `GROQ_API_KEY` and `PORT` configuration.
+    - **Required:** Create this file with your Groq API key.
+- **`server/package.json`** → Backend dependencies and scripts.
+
+#### **API Endpoints:**
+- `GET /` → Health check endpoint.
+- `POST /api/generate` → Main AI generation endpoint.
+    - **Request Body:** `{ feature: string, input: string }`
+    - **Supported Features:** `explainer`, `code`, `roadmap`, `summary`, `ideas`
+    - **Response:** `{ result: string }`
 
 ---
 
 ## 🛠 Tech Stack
-- **Frontend library:** [React](https://react.dev/)
+### **Frontend**
+- **Library:** [React](https://react.dev/)
 - **Build Tool:** [Vite](https://vitejs.dev/)
 - **Styling:** Vanilla CSS (CSS Variables + Flexbox/Grid)
 - **Icons:** [Lucide React](https://lucide.dev/)
+
+### **Backend**
+- **Runtime:** [Node.js](https://nodejs.org/)
+- **Framework:** [Express.js](https://expressjs.com/)
+- **AI API:** [Groq SDK](https://groq.com/) (Llama 4 Scout model)
+- **Environment Management:** dotenv
 
 ---
 
