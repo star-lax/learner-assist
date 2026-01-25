@@ -16,6 +16,7 @@ import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { motion, AnimatePresence } from 'framer-motion';
+import LiveCodeMentor from './LiveCodeMentor';
 import "./App.css";
 
 function App() {
@@ -34,6 +35,7 @@ function App() {
     { id: "roadmap", name: "Learning Path", icon: <Brain size={28} /> },
     { id: "summary", name: "Smart Notes", icon: <FileText size={28} /> },
     { id: "ideas", name: "Project Ideas", icon: <Lightbulb size={28} /> },
+    { id: "live-mentor", name: "Live Code Mentor", icon: <Code size={28} /> },
   ];
 
   const examplePrompts = {
@@ -241,7 +243,7 @@ function App() {
         </div>
       </header>
 
-      {/* Navigation - 5 Full Width Cards */}
+      {/* Navigation - 6 Full Width Cards */}
       <nav className="features-nav">
         {features.map((f) => (
           <div
@@ -257,144 +259,148 @@ function App() {
 
       {/* Main Chat Content Area */}
       <main className="main-content">
-        <div className="chat-container">
-          <div className="chat-header">
-            <div className="chat-title">
-              <ShieldAlert className="panel-icon" size={24} />
-              {features.find((f) => f.id === activeFeature)?.name}
-            </div>
-            {messages.length > 0 && (
-              <button className="clear-btn" onClick={clearConversation} title="Clear conversation">
-                <Trash2 size={18} />
-                Clear Chat
-              </button>
-            )}
-          </div>
-
-          {/* Messages Area */}
-          <div className="messages-area">
-            {messages.length === 0 ? (
-              <div className="welcome-screen">
-                <motion.div
-                  className="welcome-icon"
-                  animate={{
-                    scale: [1, 1.1, 1],
-                    rotate: [0, 5, -5, 0]
-                  }}
-                  transition={{
-                    duration: 2,
-                    repeat: Infinity,
-                    repeatDelay: 1
-                  }}
-                >
-                  <Sparkles size={64} />
-                </motion.div>
-                <h2>Welcome to {features.find((f) => f.id === activeFeature)?.name}</h2>
-                <p>Start a conversation by typing your question below or try an example:</p>
-                <div className="example-prompts">
-                  {examplePrompts[activeFeature]?.map((example, idx) => (
-                    <motion.button
-                      key={idx}
-                      className="example-prompt"
-                      onClick={() => handleExampleClick(example)}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      {example}
-                    </motion.button>
-                  ))}
-                </div>
+        {activeFeature === "live-mentor" ? (
+          <LiveCodeMentor />
+        ) : (
+          <div className="chat-container">
+            <div className="chat-header">
+              <div className="chat-title">
+                <ShieldAlert className="panel-icon" size={24} />
+                {features.find((f) => f.id === activeFeature)?.name}
               </div>
-            ) : (
-              <AnimatePresence>
-                {messages.map((message, index) => (
+              {messages.length > 0 && (
+                <button className="clear-btn" onClick={clearConversation} title="Clear conversation">
+                  <Trash2 size={18} />
+                  Clear Chat
+                </button>
+              )}
+            </div>
+
+            {/* Messages Area */}
+            <div className="messages-area">
+              {messages.length === 0 ? (
+                <div className="welcome-screen">
                   <motion.div
-                    key={index}
-                    className={`message ${message.role}`}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
+                    className="welcome-icon"
+                    animate={{
+                      scale: [1, 1.1, 1],
+                      rotate: [0, 5, -5, 0]
+                    }}
+                    transition={{
+                      duration: 2,
+                      repeat: Infinity,
+                      repeatDelay: 1
+                    }}
                   >
-                    <div className={`message-content ${message.streaming ? 'streaming' : ''}`}>
-                      {message.role === "assistant" ? (
-                        <ReactMarkdown
-                          components={{
-                            code({ node, inline, className, children, ...props }) {
-                              const match = /language-(\w+)/.exec(className || '');
-                              return !inline && match ? (
-                                <SyntaxHighlighter
-                                  style={vscDarkPlus}
-                                  language={match[1]}
-                                  PreTag="div"
-                                  {...props}
-                                >
-                                  {String(children).replace(/\n$/, '')}
-                                </SyntaxHighlighter>
-                              ) : (
-                                <code className={className} {...props}>
-                                  {children}
-                                </code>
-                              );
-                            }
-                          }}
-                        >
-                          {message.content}
-                        </ReactMarkdown>
-                      ) : (
-                        <p>{message.content}</p>
-                      )}
-                    </div>
-                    {message.role === "assistant" && (
-                      <button
-                        className="copy-btn"
-                        onClick={() => copyToClipboard(message.content, index)}
-                        title="Copy to clipboard"
-                      >
-                        {copiedIndex === index ? <Check size={16} /> : <Copy size={16} />}
-                      </button>
-                    )}
+                    <Sparkles size={64} />
                   </motion.div>
-                ))}
-              </AnimatePresence>
-            )}
-
-            {loading && (
-              <motion.div
-                className="message assistant"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
-                <div className="typing-indicator">
-                  <span></span>
-                  <span></span>
-                  <span></span>
+                  <h2>Welcome to {features.find((f) => f.id === activeFeature)?.name}</h2>
+                  <p>Start a conversation by typing your question below or try an example:</p>
+                  <div className="example-prompts">
+                    {examplePrompts[activeFeature]?.map((example, idx) => (
+                      <motion.button
+                        key={idx}
+                        className="example-prompt"
+                        onClick={() => handleExampleClick(example)}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        {example}
+                      </motion.button>
+                    ))}
+                  </div>
                 </div>
-              </motion.div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
+              ) : (
+                <AnimatePresence>
+                  {messages.map((message, index) => (
+                    <motion.div
+                      key={index}
+                      className={`message ${message.role}`}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <div className={`message-content ${message.streaming ? 'streaming' : ''}`}>
+                        {message.role === "assistant" ? (
+                          <ReactMarkdown
+                            components={{
+                              code({ node, inline, className, children, ...props }) {
+                                const match = /language-(\w+)/.exec(className || '');
+                                return !inline && match ? (
+                                  <SyntaxHighlighter
+                                    style={vscDarkPlus}
+                                    language={match[1]}
+                                    PreTag="div"
+                                    {...props}
+                                  >
+                                    {String(children).replace(/\n$/, '')}
+                                  </SyntaxHighlighter>
+                                ) : (
+                                  <code className={className} {...props}>
+                                    {children}
+                                  </code>
+                                );
+                              }
+                            }}
+                          >
+                            {message.content}
+                          </ReactMarkdown>
+                        ) : (
+                          <p>{message.content}</p>
+                        )}
+                      </div>
+                      {message.role === "assistant" && (
+                        <button
+                          className="copy-btn"
+                          onClick={() => copyToClipboard(message.content, index)}
+                          title="Copy to clipboard"
+                        >
+                          {copiedIndex === index ? <Check size={16} /> : <Copy size={16} />}
+                        </button>
+                      )}
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              )}
 
-          {/* Input Area */}
-          <div className="input-container">
-            <textarea
-              ref={textareaRef}
-              className="chat-input"
-              placeholder={`Ask anything about ${features.find((f) => f.id === activeFeature)?.name.toLowerCase()}... (Shift+Enter for new line)`}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyPress={handleKeyPress}
-              rows={1}
-              disabled={loading}
-            />
-            <button
-              className="send-btn"
-              onClick={handleSend}
-              disabled={loading || !input.trim()}
-            >
-              <Send size={20} />
-            </button>
+              {loading && (
+                <motion.div
+                  className="message assistant"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <div className="typing-indicator">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </div>
+                </motion.div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Input Area */}
+            <div className="input-container">
+              <textarea
+                ref={textareaRef}
+                className="chat-input"
+                placeholder={`Ask anything about ${features.find((f) => f.id === activeFeature)?.name.toLowerCase()}... (Shift+Enter for new line)`}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyPress={handleKeyPress}
+                rows={1}
+                disabled={loading}
+              />
+              <button
+                className="send-btn"
+                onClick={handleSend}
+                disabled={loading || !input.trim()}
+              >
+                <Send size={20} />
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </main>
 
       {/* Footer */}

@@ -105,3 +105,53 @@ Since we are working as a team:
 3.  **make a separate feature file for both frontend and backend for smooth merging
 
 ### Happy Hacking! 🚀
+## 🎓 Live Code Mentor Feature
+
+AI-powered real-time code mentoring with instant feedback.
+
+### Additional Setup for Live Code Mentor:
+
+**Backend Requirements:**
+```bash
+cd backend
+python -m venv venv
+
+# Windows:
+venv\Scripts\activate
+
+# Mac/Linux:
+source venv/bin/activate
+
+pip install -r requirements.txt
+```
+
+**Environment Variables:**
+Create `backend/.env`:
+```
+ANTHROPIC_API_KEY=your_anthropic_key_here
+PORT=5001
+```
+
+### Running All Services:
+
+**Terminal 1 - Main Backend (Node.js):**
+```bash
+cd server
+npm install
+npm run dev
+```
+
+**Terminal 2 - AI Mentor Backend (Flask):**
+```bash
+cd backend
+venv\Scripts\activate  # Windows
+source venv/bin/activate  # Mac/Linux
+python app.py
+```
+
+**Terminal 3 - Frontend:**
+```bash
+npm run dev
+```
+
+Access the app at `http://localhost:5173`
