@@ -1,0 +1,22 @@
+[
+  'llama-3.1-8b-instant',
+  'meta-llama/llama-guard-4-12b',
+  'openai/gpt-oss-safeguard-20b',
+  'whisper-large-v3-turbo',
+  'allam-2-7b',
+  'meta-llama/llama-prompt-guard-2-86m',
+  'qwen/qwen3-32b',
+  'canopylabs/orpheus-v1-english',
+  'llama-3.3-70b-versatile',
+  'moonshotai/kimi-k2-instruct',
+  'openai/gpt-oss-120b',
+  'groq/compound-mini',
+  'meta-llama/llama-4-maverick-17b-128e-instruct',
+  'openai/gpt-oss-20b',
+  'groq/compound',
+  'canopylabs/orpheus-arabic-saudi',
+  'meta-llama/llama-prompt-guard-2-22m',
+  'whisper-large-v3',
+  'moonshotai/kimi-k2-instruct-0905',
+  'meta-llama/llama-4-scout-17b-16e-instruct'
+]

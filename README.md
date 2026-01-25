@@ -30,7 +30,7 @@ Follow these instructions to set up the project locally for development.
 ### 🏃 Running the Project
 **1. Start the Backend:**
    Open a new terminal:
-   ```bash
+   ```bashins 
    cd server
    npm install
    npm run dev

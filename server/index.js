@@ -4,6 +4,9 @@ import dotenv from 'dotenv';
 import Groq from 'groq-sdk';
 import rateLimit from 'express-rate-limit';
 import NodeCache from 'node-cache';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const pdfParse = require('pdf-parse');
 
 dotenv.config();
 
@@ -19,8 +22,11 @@ const limiter = rateLimit({
     max: 100 // limit each IP to 100 requests per windowMs
 });
 
+// Configure body parser for larger payloads (base64 images)
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
 app.use(cors());
-app.use(express.json());
 app.use('/api/', limiter);
 
 // Initialize Groq API
@@ -35,25 +41,27 @@ const getSystemPrompt = (feature) => {
     const prompts = {
         explainer: `You are an expert educator who explains concepts in a clear, engaging, and beginner-friendly way. 
 Use analogies, examples, and structured explanations. Break down complex topics into digestible parts. 
-Format your responses with proper markdown including headings, bullet points, and code blocks when relevant.`,
+Format your responses with proper markdown including headings, bullet points, and code blocks when relevant.
+If the user provides an image or PDF content, use it as primary context for your explanation.`,
         code: `You are an expert code reviewer and educator. Explain code clearly, covering:
 1. What the code does (high-level overview)
 2. How it works (line-by-line or block-by-block)
 3. Key concepts used
 4. Potential improvements or best practices
-Use markdown formatting with code blocks and syntax highlighting.`,
-        roadmap: `You are a learning path architect. Create comprehensive, step-by-step learning roadmaps with:
-- Clear progression from beginner to advanced
-- Key topics and subtopics
-- Recommended resources
-- Estimated time for each phase
-- Practical projects to build
-Format with markdown headings and lists.`,
+Use markdown formatting with code blocks and syntax highlighting.
+If an image of code is provided, analyze the code in the image carefully.`,
+        roadmap: `You are a learning path architect. Your task is to generate a TRACKABLE day-by-day or step-by-step learning roadmap.
+CRITICAL FORMATTING RULE: 
+- Every major section MUST be a heading (###) starting with "Day X:", "Step X:", or "Phase X:".
+- You MUST provide at least 5 such milestones.
+- Under each heading, provide exactly 3-5 checkable tasks via bullet points (-).
+Do not provide a general introduction. Start immediately with the roadmap milestones.`,
         summary: `You are a note-taking expert. Create concise, well-organized summaries with:
 - Key points in bullet format
 - Important concepts highlighted
 - Logical grouping of related information
-Use markdown formatting for clarity.`,
+Use markdown formatting for clarity.
+If a PDF is provided, summarize its core message and key takeaways.`,
         ideas: `You are a creative project advisor. Suggest unique, practical project ideas that:
 - Match the user's skill level
 - Demonstrate real-world applications
@@ -81,130 +89,105 @@ const generatePrompt = (feature, input) => {
     }
 };
 
-// Main API endpoint with conversation context support
-app.post('/api/generate', async (req, res) => {
-    const { feature, input, conversationId, conversationHistory = [] } = req.body;
-
-    if (!input) {
-        return res.status(400).json({ error: 'Input is required' });
-    }
-
+// Helper: Extract text from base64 PDF
+const extractPdfText = async (base64String) => {
     try {
-        // Build conversation messages with context
-        const messages = [
-            {
-                role: "system",
-                content: getSystemPrompt(feature)
-            }
-        ];
-
-        // Add conversation history for context (last 10 messages)
-        const recentHistory = conversationHistory.slice(-10);
-        messages.push(...recentHistory);
-
-        // Add current user message
-        messages.push({
-            role: "user",
-            content: generatePrompt(feature, input)
-        });
-
-        console.log(`Generating content for feature: ${feature} using Groq (with ${recentHistory.length} context messages)`);
-
-        const chatCompletion = await groq.chat.completions.create({
-            messages: messages,
-            model: "meta-llama/llama-4-scout-17b-16e-instruct",
-            temperature: 0.7,
-            max_tokens: 2048,
-        });
-
-        const text = chatCompletion.choices[0]?.message?.content || "No response generated.";
-
-        // Store conversation if conversationId provided
-        if (conversationId) {
-            const updatedHistory = [
-                ...recentHistory,
-                { role: "user", content: input },
-                { role: "assistant", content: text }
-            ];
-            conversationCache.set(conversationId, updatedHistory);
-        }
-
-        res.json({
-            result: text,
-            conversationId: conversationId || null
-        });
-
+        const buffer = Buffer.from(base64String.split(',')[1], 'base64');
+        const data = await pdfParse(buffer);
+        return data.text;
     } catch (error) {
-        console.error('AI Generation Error:', error);
-        res.status(500).json({ error: 'Failed to generate content' });
+        console.error('PDF Parsing Error:', error);
+        return '[Error extracting text from PDF]';
     }
-});
+};
 
 // Streaming endpoint for real-time responses
 app.post('/api/generate/stream', async (req, res) => {
-    const { feature, input, conversationId, conversationHistory = [] } = req.body;
+    const { feature, input, conversationId, conversationHistory = [], attachments = [] } = req.body;
 
-    if (!input) {
-        return res.status(400).json({ error: 'Input is required' });
+    if (!input && attachments.length === 0) {
+        return res.status(400).json({ error: 'Input or attachments are required' });
     }
 
-    // Set headers for Server-Sent Events
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
     try {
-        // Build conversation messages with context
-        const messages = [
-            {
-                role: "system",
-                content: getSystemPrompt(feature)
+        let finalInput = input;
+        let images = [];
+
+        // Process attachments
+        for (const file of attachments) {
+            if (file.type.startsWith('image/')) {
+                images.push(file.url); // base64 url
+            } else if (file.type === 'application/pdf') {
+                const pdfText = await extractPdfText(file.url);
+                finalInput += `\n\n[Content from attached PDF "${file.name}"]:\n${pdfText}`;
             }
-        ];
+        }
 
-        // Add conversation history for context (last 10 messages)
+        const systemPrompt = getSystemPrompt(feature);
+        const userPrompt = generatePrompt(feature, finalInput);
+
+        let messages = [];
         const recentHistory = conversationHistory.slice(-10);
-        messages.push(...recentHistory);
 
-        // Add current user message
-        messages.push({
-            role: "user",
-            content: generatePrompt(feature, input)
-        });
+        if (images.length > 0) {
+            // Include system prompt instructions inside the user content for multimodal
+            const contentParts = [
+                { type: "text", text: `${systemPrompt}\n\nUSER REQUEST: ${userPrompt}` }
+            ];
+            images.forEach(img => {
+                contentParts.push({
+                    type: "image_url",
+                    image_url: { url: img }
+                });
+            });
+            messages = [...recentHistory, { role: "user", content: contentParts }];
+        } else {
+            messages = [
+                { role: "system", content: systemPrompt },
+                ...recentHistory,
+                { role: "user", content: userPrompt }
+            ];
+        }
 
-        console.log(`Streaming content for feature: ${feature} using Groq (with ${recentHistory.length} context messages)`);
+        const model = "meta-llama/llama-4-scout-17b-16e-instruct";
+        console.log(`[DEBUG] model: ${model} | images: ${images.length}`);
 
         const stream = await groq.chat.completions.create({
             messages: messages,
-            model: "meta-llama/llama-4-scout-17b-16e-instruct",
+            model: model,
             temperature: 0.7,
             max_tokens: 2048,
-            stream: true, // Enable streaming
+            stream: true,
+        }).catch(err => {
+            console.error(`[GROQ ERROR] ${err.message}`);
+            throw err;
         });
 
         let fullText = '';
-
-        // Stream the response chunks
+        let chunkCount = 0;
         for await (const chunk of stream) {
             const content = chunk.choices[0]?.delta?.content || '';
             if (content) {
                 fullText += content;
-                // Send chunk to client
+                chunkCount++;
                 res.write(`data: ${JSON.stringify({ content, done: false })}\n\n`);
             }
         }
+        console.log(`[DEBUG] Sent ${chunkCount} chunks. Total chars: ${fullText.length}`);
 
-        // Store conversation if conversationId provided
         if (conversationId) {
             const updatedHistory = [
                 ...recentHistory,
-                { role: "user", content: input },
+                { role: "user", content: input || "[Attachment sent]" },
                 { role: "assistant", content: fullText }
             ];
             conversationCache.set(conversationId, updatedHistory);
         }
 
-        // Send completion signal
         res.write(`data: ${JSON.stringify({ content: '', done: true, fullText })}\n\n`);
         res.end();
 
@@ -215,19 +198,13 @@ app.post('/api/generate/stream', async (req, res) => {
     }
 });
 
-// Get conversation history
 app.get('/api/conversation/:id', (req, res) => {
     const { id } = req.params;
     const history = conversationCache.get(id);
-
-    if (history) {
-        res.json({ history });
-    } else {
-        res.status(404).json({ error: 'Conversation not found' });
-    }
+    if (history) res.json({ history });
+    else res.status(404).json({ error: 'Conversation not found' });
 });
 
-// Clear conversation
 app.delete('/api/conversation/:id', (req, res) => {
     const { id } = req.params;
     conversationCache.del(id);
