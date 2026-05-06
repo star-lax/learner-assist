@@ -101,6 +101,16 @@ const extractPdfText = async (base64String) => {
     }
 };
 
+// FIXED: Smart model selection based on whether images are present
+const selectModel = (hasImages) => {
+    if (hasImages) {
+        // Use vision-capable model for images
+        return "meta-llama/llama-4-scout-17b-16e-instruct";
+    } else {
+        // Use text-only model for better performance
+        return "llama-3.3-70b-versatile";
+    }
+};
 // Streaming endpoint for real-time responses
 app.post('/api/generate/stream', async (req, res) => {
     const { feature, input, conversationId, conversationHistory = [], attachments = [] } = req.body;
@@ -118,15 +128,17 @@ app.post('/api/generate/stream', async (req, res) => {
         let images = [];
 
         // Process attachments
+        // Process attachments
         for (const file of attachments) {
             if (file.type.startsWith('image/')) {
                 images.push(file.url); // base64 url
+                console.log(`[IMAGE] Added image: ${file.name}`);
             } else if (file.type === 'application/pdf') {
                 const pdfText = await extractPdfText(file.url);
                 finalInput += `\n\n[Content from attached PDF "${file.name}"]:\n${pdfText}`;
+                console.log(`[PDF] Extracted ${pdfText.length} characters from ${file.name}`);
             }
         }
-
         const systemPrompt = getSystemPrompt(feature);
         const userPrompt = generatePrompt(feature, finalInput);
 
@@ -134,11 +146,13 @@ app.post('/api/generate/stream', async (req, res) => {
         const recentHistory = conversationHistory.slice(-10);
 
         if (images.length > 0) {
+            console.log(`[VISION MODE] Processing ${images.length} image(s)`);
             // Include system prompt instructions inside the user content for multimodal
             const contentParts = [
                 { type: "text", text: `${systemPrompt}\n\nUSER REQUEST: ${userPrompt}` }
             ];
-            images.forEach(img => {
+            images.forEach((img, idx) => {
+                console.log(`[IMAGE ${idx + 1}] Adding to content parts`);
                 contentParts.push({
                     type: "image_url",
                     image_url: { url: img }
@@ -146,6 +160,7 @@ app.post('/api/generate/stream', async (req, res) => {
             });
             messages = [...recentHistory, { role: "user", content: contentParts }];
         } else {
+            console.log(`[TEXT MODE] No images detected`);
             messages = [
                 { role: "system", content: systemPrompt },
                 ...recentHistory,
@@ -153,8 +168,8 @@ app.post('/api/generate/stream', async (req, res) => {
             ];
         }
 
-        const model = "meta-llama/llama-4-scout-17b-16e-instruct";
-        console.log(`[DEBUG] model: ${model} | images: ${images.length}`);
+        const model = selectModel(images.length > 0);
+        console.log(`[MODEL] Selected: ${model} | Images: ${images.length} | Has Vision: ${images.length > 0}`);
 
         const stream = await groq.chat.completions.create({
             messages: messages,
@@ -164,6 +179,7 @@ app.post('/api/generate/stream', async (req, res) => {
             stream: true,
         }).catch(err => {
             console.error(`[GROQ ERROR] ${err.message}`);
+            console.error(`[GROQ ERROR] Full error:`, err);
             throw err;
         });
 
@@ -211,7 +227,19 @@ app.delete('/api/conversation/:id', (req, res) => {
     res.json({ message: 'Conversation cleared' });
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Vision Model: meta-llama/llama-4-scout-17b-16e-instruct`);
+    console.log(`Text Model: llama-3.3-70b-versatile`);
+});
+
+server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+        console.error(`Port ${PORT} is already in use. Use 'netstat -ano | findstr :${PORT}' then 'taskkill /PID <pid> /F', or set PORT env var to a free port.`);
+        process.exit(1);
+    } else {
+        console.error('Server error:', err);
+        process.exit(1);
+    }
 });
 
